@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from random import randint
 
 from core_apps.common.models import BaseModel
 
@@ -37,15 +38,21 @@ class CustomUserManager(BaseUserManager):
         
 class CustomUser(BaseModel, AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
      
     objects = CustomUserManager()
 
-
     USERNAME_FIELD = 'email'
-    
 
+
+class OPTCode(BaseModel):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="opt")
+    code = models.CharField(max_length=6, default=randint(100000, 999999))
+
+
+    def __str__(self):
+        return self.code
 
 

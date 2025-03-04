@@ -1,11 +1,12 @@
 from rest_framework import serializers, status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.core.validators import MinLengthValidator
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.validators import MinLengthValidator
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
+from random import randint
 
-from .models import CustomUser
+from .models import CustomUser, OPTCode
 from .validation import str_has_letter, str_has_special_char, str_has_number
 from .services import register
 
@@ -49,22 +50,21 @@ class RegisterUser(APIView):
     
     
     class OutputRegisterSerializer(serializers.ModelSerializer):
-        token  = serializers.SerializerMethodField('get_token')
-        
+
         class Meta:
             model = CustomUser
-            fields = ['email','token', "created", "updated"]
+            fields = ['email', "created", "updated"]
             
-        def get_token(self, user):
-            data = dict()
-            token_class = RefreshToken
-            
-            refresh = token_class.for_user(user)
-            
-            data['refresh'] = str(refresh)
-            data['access'] = str(refresh.access_token)
-            
-            return data
+        # def get_token(self, user):
+        #     data = dict()
+        #     token_class = RefreshToken
+        #
+        #     refresh = token_class.for_user(user)
+        #
+        #     data['refresh'] = str(refresh)
+        #     data['access'] = str(refresh.access_token)
+        #
+        #     return data
 
     @extend_schema(request=InputRegisterSerializer, responses=OutputRegisterSerializer)
     def post(self, request):
@@ -76,6 +76,8 @@ class RegisterUser(APIView):
                 email=serializer_data.validated_data.get('email'),
                 password=serializer_data.validated_data.get('password')
             )
+            user_code = OPTCode.objects.create(user=user)
+            print(user_code.code)
         except Exception as ex:
             return Response(f'Database error {ex}', status=status.HTTP_400_BAD_REQUEST)
 
@@ -152,3 +154,100 @@ class LogoutAPIView(APIView):
         response.delete_cookie('refresh')
 
         return response
+
+
+class ActiveUserAPIView(APIView):
+
+    class InputActiveCodeSerializer(serializers.Serializer):
+        email = serializers.EmailField(max_length=200, required=False)
+        code = serializers.CharField(max_length=6, required=False)
+
+        def validate(self, data):
+            if not data.get('email') or not data.get('code'):
+                serializers.ValidationError("please fill email and code")
+            return data
+
+    class OutputActiveUserSerializer(serializers.ModelSerializer):
+        token = serializers.SerializerMethodField()
+        class Meta:
+            model = CustomUser
+            fields = ['email', "token", "created", "updated"]
+
+        def get_token(self, user):
+            data = dict()
+            token_class = RefreshToken
+
+            refresh = token_class.for_user(user)
+
+            data['refresh'] = str(refresh)
+            data['access'] = str(refresh.access_token)
+            return data
+
+    @extend_schema(request=InputActiveCodeSerializer, responses=OutputActiveUserSerializer)
+    def post(self, request, *args, **kwargs):
+        serializer = self.InputActiveCodeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data.get('email')
+        code = serializer.validated_data.get('code')
+        user = CustomUser.objects.get(email=email)
+        opt = OPTCode.objects.get(user=user)
+
+        if opt.code == code:
+            user.is_active = True
+            user.save()
+            return Response(self.OutputActiveUserSerializer(user).data , status=status.HTTP_200_OK)
+        return  Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class SendEmailAPIView(APIView):
+
+    class InputResetPasswordSerializer(serializers.Serializer):
+        email = serializers.EmailField(max_length=200, required=False)
+
+    @extend_schema(request=InputResetPasswordSerializer, responses=InputResetPasswordSerializer)
+    def post(self, request, *args, **kwargs):
+        serializer = self.InputResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data.get('email')
+        try:
+            user = CustomUser.objects.get(email=email)
+            opt = OPTCode.objects.get(user=user)
+            opt.code = randint(100000, 999999)
+            opt.save()
+            print(" sent email code", opt.code)
+        except ValueError as Ex:
+            raise serializers.ValidationError("User is not exist...", Ex)
+
+        return Response({'email': email}, status=status.HTTP_200_OK)
+
+
+class ChangePasswordAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    class InputChangePasswordSerializer(serializers.Serializer):
+        re_password = serializers.CharField(max_length=222)
+        password = serializers.CharField(validators=[
+            str_has_number,
+            str_has_letter,
+            str_has_special_char,
+            MinLengthValidator(limit_value=8)
+        ])
+
+        def validate(self, data):
+            if not data.get('password') or not data.get('re_password'):
+                raise serializers.ValidationError("please fill password and confirm password")
+
+            if data.get('password') != data.get('re_password'):
+                raise serializers.ValidationError("confirm password must be equal to password")
+            return data
+
+    @extend_schema(request=InputChangePasswordSerializer)
+    def post(self, request, *args, **kwargs):
+        serializer = self.InputChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        password = serializer.validated_data.get('password')
+        user = request.user
+        user.set_password(password)
+        user.save()
+        return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
