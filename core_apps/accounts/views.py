@@ -69,9 +69,10 @@ class RegisterUser(APIView):
     @extend_schema(request=InputRegisterSerializer, responses=OutputRegisterSerializer)
     def post(self, request):
         serializer_data = self.InputRegisterSerializer(data=request.data)
-        
+
         serializer_data.is_valid(raise_exception=True)
         try:
+
             user = register(
                 email=serializer_data.validated_data.get('email'),
                 password=serializer_data.validated_data.get('password')

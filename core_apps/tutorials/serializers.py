@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Subject, SubSubject, Lesson
+from .models import Subject, SubSubject, Lesson, UserProgress
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -21,3 +21,13 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ('id', 'title', 'description', 'sub_subjects')
+
+
+class UserProgressSerializer(serializers.ModelSerializer):
+    subject = SubjectSerializer(read_only=True)
+
+    class Meta:
+        model = UserProgress
+        fields = ('id', 'subject', 'completed', 'completed_at', 'can_read')
+
+

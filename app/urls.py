@@ -27,8 +27,11 @@ urlpatterns = [
     path('api/v2/exams/', include('core_apps.exams.urls')),
     path('api/v2/user/', include('core_apps.accounts.urls')),
     path('api/v2/auth/', include('core_apps.authenticate.urls')),
-    path('api/v2/tutorials/', include('core_apps.tutorials.urls')),
     path('api/v2/codes/', include('core_apps.codes.urls')),
     path('api/v2/profile/', include('core_apps.profiles.urls')),
 
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

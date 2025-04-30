@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Subject, SubSubject, Lesson
+from .models import Subject, SubSubject, Lesson, UserProgress
 
 
 class SubjectAdmin(admin.ModelAdmin):
@@ -16,3 +16,6 @@ class SubSubjectAdmin(admin.ModelAdmin):
     inlines = [LessonAdmin]
 
 admin.site.register(SubSubject, SubSubjectAdmin)
+
+
+admin.site.register(UserProgress)

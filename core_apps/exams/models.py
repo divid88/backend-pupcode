@@ -13,6 +13,7 @@ class Exam(BaseModel):
     def __str__(self):
         return self.title
 
+
 class Questions(BaseModel):
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE,
                              related_name='questions')
@@ -37,7 +38,7 @@ class Results(BaseModel):
                              related_name='results')
     user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE,
                              related_name='results')
-    score = models.IntegerField()
+    score = models.IntegerField(default=2)
 
     def __str__(self):
         return f"{self.user.username} - {self.exam.title} - {self.score}"

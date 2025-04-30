@@ -19,13 +19,16 @@ class SubCodeSerializer(serializers.ModelSerializer):
 
 
 class AnswerUserSerializer(serializers.ModelSerializer):
-    sub_code = SubCodeSerializer()
+    sub_code = SubCodeSerializer(required=False)
     class Meta:
         model = AnswerUser
         fields = (
             'sub_code',
             'is_correct',
             'user_code')
+
+class UserCodeSerializer(serializers.Serializer):
+    user_code = serializers.FileField()
 
 
 class CodeSerializer(serializers.ModelSerializer):
